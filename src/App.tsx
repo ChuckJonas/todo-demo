@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card, DatePicker, Input, Form, Button, Layout } from "antd";
 import "antd/dist/antd.css";
 import moment, { Moment } from "moment";
 import useInterval from 'use-interval';
+import {debounce} from 'lodash';
 
 // type alias can really help with readability, especially in function signatures & state structures
 type EntryId = string;
@@ -14,7 +15,12 @@ type TimeEntry = {
   date: Moment;
 };
 
-const INIT_TE: TimeEntry[] = [
+// Map: id --> {changes}
+type ChangedEntries =  Record<EntryId, Partial<TimeEntry>>;
+
+
+// IRL this comes from server
+const EXISTING_TE: TimeEntry[] = [
   {
     id: "1",
     notes: "GST: hello world",
@@ -30,26 +36,35 @@ const INIT_TE: TimeEntry[] = [
 ];
 
 /* APP */
+interface AppProps {initChanges: ChangedEntries, onSaveChanges: (changes: ChangedEntries) => void}
 
-function App() {
-  //=== state
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(INIT_TE);
+function App(props: AppProps) {
+  const { initChanges, onSaveChanges } = props;
 
-  // Map: id --> {changes}
-  const [changes, setChanges] = useState<Record<EntryId, Partial<TimeEntry>>>(
-    {}
+  //=== STATE
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(EXISTING_TE);
+
+  const [changes, setChanges] = useState<ChangedEntries>(
+    initChanges
   );
   
   const [currentDate, setCurrentDate] = useState<Moment | null>(moment());
   const [activeTimeEntry, setActiveTimeEntry] = useState<EntryId>();
 
-  //=== handlers
+  //=== STATE HANDLERS
   const change = (id: EntryId, updates: Partial<TimeEntry>) => {
     // just keep track of the partial changes in a Record object
     const currentChanges = changes[id] || {};
     const newItem = { ...currentChanges, ...updates };
     const newState = { ...changes, [id]: newItem };
     setChanges(newState);
+
+    //persist our changes, but skip if it's just a timer "tick"
+    const changedKeys = Object.keys(updates);
+    if(changedKeys.length === 1 && changedKeys[0] !== 'time'){  
+      onSaveChanges(newState);
+    }
+
   };
 
   useInterval(() => {
@@ -145,6 +160,7 @@ function TimeEntryList(props: TimeEntryListProps) {
   const { onPause, onStart, onChange, onSave, onRevert, timeEntries, activeTimeEntry, dirtyItems } = props;
   const teItems = timeEntries.map((te) => (
     <TimeEntry
+      key={te.id}
       timeEntry={te}
       isActive={activeTimeEntry === te.id}
       isDirty={dirtyItems.includes(te.id)}
@@ -161,6 +177,7 @@ function TimeEntryList(props: TimeEntryListProps) {
 
 /* Time Entry Card */
 interface TimeEntryProps {
+  key: string;
   timeEntry: TimeEntry;
   isActive: boolean;
   isDirty: boolean;
