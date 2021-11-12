@@ -17,8 +17,8 @@ try{
   localData = {};
 }
 
-// debounce so we don't spam this
-// (although, if the timer is running, it won't update until paused)
+// debounce so we don't spam localstorage with writes
+// although... if the timer is running, it won't update until paused because the interval matches the debounce time
 const updateLocalStorage = debounce(changes => {
   console.log('updating local storage');
   window.localStorage.setItem('changes', JSON.stringify(changes));
@@ -26,7 +26,7 @@ const updateLocalStorage = debounce(changes => {
 
 ReactDOM.render(
   <React.StrictMode>
-    <App initChanges={localData} onSaveChanges={updateLocalStorage} />
+    <App savedChanges={localData} onSaveChanges={updateLocalStorage} />
   </React.StrictMode>,
   document.getElementById('root')
 );

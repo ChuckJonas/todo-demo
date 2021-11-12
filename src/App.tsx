@@ -36,20 +36,23 @@ const EXISTING_TE: TimeEntry[] = [
 ];
 
 /* APP */
-interface AppProps {initChanges: ChangedEntries, onSaveChanges: (changes: ChangedEntries) => void}
+interface AppProps {savedChanges: ChangedEntries, onSaveChanges: (changes: ChangedEntries) => void}
 
 function App(props: AppProps) {
-  const { initChanges, onSaveChanges } = props;
+  const { savedChanges, onSaveChanges } = props;
 
   //=== STATE
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(EXISTING_TE);
 
   const [changes, setChanges] = useState<ChangedEntries>(
-    initChanges
+    savedChanges
   );
   
   const [currentDate, setCurrentDate] = useState<Moment | null>(moment());
   const [activeTimeEntry, setActiveTimeEntry] = useState<EntryId>();
+
+  // === Persist "changes" whenever it updates
+  useEffect(() => onSaveChanges(changes), [changes, onSaveChanges])
 
   //=== STATE HANDLERS
   const change = (id: EntryId, updates: Partial<TimeEntry>) => {
@@ -58,18 +61,12 @@ function App(props: AppProps) {
     const newItem = { ...currentChanges, ...updates };
     const newState = { ...changes, [id]: newItem };
     setChanges(newState);
-
-    //persist our changes, but skip if it's just a timer "tick"
-    const changedKeys = Object.keys(updates);
-    if(changedKeys.length === 1 && changedKeys[0] !== 'time'){  
-      onSaveChanges(newState);
-    }
-
   };
 
   useInterval(() => {
     // probably not a great way to track time.  
     // Might be more reliable to track start time + id (EG: [2021-1-1T12:34:01, 1]) then copy over to "elapsed time" when item changes?
+    // this also makes debouncing on state changes tough
     if(activeTimeEntry){
       const currentTime = changes[activeTimeEntry]?.time || timeEntries.find(te => te.id === activeTimeEntry)?.time || 0;
       change(activeTimeEntry, {time: currentTime + 1})
