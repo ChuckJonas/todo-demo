@@ -36,23 +36,23 @@ const EXISTING_TE: TimeEntry[] = [
 ];
 
 /* APP */
-interface AppProps {savedChanges: ChangedEntries, onSaveChanges: (changes: ChangedEntries) => void}
+interface AppProps {persistedChanges: ChangedEntries, onPersistChanges: (changes: ChangedEntries) => void}
 
 function App(props: AppProps) {
-  const { savedChanges, onSaveChanges } = props;
+  const { persistedChanges, onPersistChanges } = props;
 
   //=== STATE
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(EXISTING_TE);
 
   const [changes, setChanges] = useState<ChangedEntries>(
-    savedChanges
+    persistedChanges
   );
   
   const [currentDate, setCurrentDate] = useState<Moment | null>(moment());
   const [activeTimeEntry, setActiveTimeEntry] = useState<EntryId>();
 
   // === Persist "changes" whenever it updates
-  useEffect(() => onSaveChanges(changes), [changes, onSaveChanges])
+  useEffect(() => onPersistChanges(changes), [changes, onPersistChanges])
 
   //=== STATE HANDLERS
   const change = (id: EntryId, updates: Partial<TimeEntry>) => {
@@ -78,9 +78,11 @@ function App(props: AppProps) {
 
   const clearChanges  = (id: EntryId) => {
     //delete from "changes" state
-    const newChanges = {...changes};
-    delete newChanges[id];
-    setChanges(newChanges);
+    setChanges((c) => {
+      const newChanges = {...c};
+      delete newChanges[id];
+      return newChanges;
+    });
   }
 
   const revert = (id: EntryId) => {
@@ -93,15 +95,22 @@ function App(props: AppProps) {
   }
 
   const save = (id: EntryId) => {
+    console.log('saving', id)
     const existingItem = timeEntries.find(te => te.id === id);
     
     if(!changes[id] || !existingItem){
       return;
     }
-  
+      
     // IRL this would make callout, only then update "timeEntries" (or refetch from server after)
     const itemChanges = changes[id];
     const updatedItem = {...existingItem, ...itemChanges};
+
+    console.log(changes, existingItem,  updatedItem)
+
+    //IRL: Call API
+    //const newEntry = upsertTimeEntry(itemChanges);
+    // setTimeEntries(timeEntries.map(te => te.id === id ? newEntry : te ));
 
     setTimeEntries(timeEntries.map(te => te.id === id ? updatedItem : te ));
     //delete from "changes" state
@@ -114,6 +123,7 @@ function App(props: AppProps) {
       return changes[te.id] ? { ...te, ...changes[te.id] } : te;
     })
     .filter((te) => te.date.dayOfYear() === currentDate?.dayOfYear());
+
 
   // === ELEMENTS
   const add = <Button type="primary" onClick={console.log}>New</Button>;
@@ -168,7 +178,7 @@ function TimeEntryList(props: TimeEntryListProps) {
       onSave={() => onSave(te.id)}
     />
   ));
-  return <div>{teItems}</div>;
+  return <Card title="Time Entries" extra={<Button type="primary" onClick={() => dirtyItems.map(it => onSave(it))}>Save all</Button>}>{teItems}</Card>;
 }
 
 

@@ -26,7 +26,7 @@ const updateLocalStorage = debounce(changes => {
 
 ReactDOM.render(
   <React.StrictMode>
-    <App savedChanges={localData} onSaveChanges={updateLocalStorage} />
+    <App persistedChanges={localData} onPersistChanges={updateLocalStorage} />
   </React.StrictMode>,
   document.getElementById('root')
 );
